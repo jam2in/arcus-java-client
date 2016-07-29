@@ -1013,6 +1013,135 @@ public class MemcachedClient extends SpyThread
 	 * @throws IllegalStateException in the rare circumstance where queue
 	 *         is too full to accept any more requests
 	 */
+	public <T> BulkFuture<Map<String, T>> asyncGetBulk2(Collection<String> keys,
+	                                                   Iterator<Transcoder<T>> tc_iter) {
+		final Map<String, Future<T>> m=new ConcurrentHashMap<String, Future<T>>();
+
+		// This map does not need to be a ConcurrentHashMap
+		// because it is fully populated when it is used and
+		// used only to read the transcoder for a key.
+		final Map<String, Transcoder<T>> tc_map = new HashMap<String, Transcoder<T>>();
+		Iterator<String> key_iter=keys.iterator();
+		while (key_iter.hasNext() && tc_iter.hasNext()) {
+			String key=key_iter.next();
+			Transcoder<T> tc = tc_iter.next();
+
+			// FIXME This should be refactored...
+			// And the original front-cache implementations are really weird :-(
+			if (localCacheManager != null) {
+				T cachedData = localCacheManager.get(key, tc);
+				if (cachedData != null) {
+					m.put(key, localCacheManager.asyncPreFetch(key, tc));
+					continue;
+				}
+			}
+
+			tc_map.put(key, tc);
+			validateKey(key);
+		}
+
+		final CountDownLatch latch=new CountDownLatch(keys.size());
+		final Collection<Operation> ops=new ArrayList<Operation>(keys.size());
+
+		GetOperation.Callback cb=new GetOperation.Callback() {
+			public void receivedStatus(OperationStatus status) {
+				if(!status.isSuccess()) {
+					getLogger().warn("Unsuccessful get:  %s", status);
+				}
+			}
+			public void gotData(String k, int flags, byte[] data) {
+				Transcoder<T> tc = tc_map.get(k);
+				m.put(k, tcService.decode(tc,
+						new CachedData(flags, data, tc.getMaxSize())));
+			}
+			public void complete() {
+				latch.countDown();
+			}
+		};
+
+		// Now that we know how many servers it breaks down into, and the latch
+		// is all set up, convert all of these strings collections to operations
+		Iterator<String> addOp_iter = keys.iterator();
+		while (addOp_iter.hasNext()) {
+			String key = addOp_iter.next();
+
+			Operation op = opFact.get(key, cb);
+			ops.add(op);
+			checkState();
+			conn.addOperation(key, op);
+		}
+		return new BulkGetFuture<T>(m, ops, latch, localCacheManager);
+	}
+
+	/**
+	 * Asynchronously get a bunch of objects from the cache.
+	 *
+	 * @param <T>
+	 * @param keys the keys to request
+	 * @param tc the transcoder to serialize and unserialize values
+	 * @return a Future result of that fetch
+	 * @throws IllegalStateException in the rare circumstance where queue
+	 *         is too full to accept any more requests
+	 */
+	public <T> BulkFuture<Map<String, T>> asyncGetBulk2(Collection<String> keys,
+	                                                   Transcoder<T> tc) {
+		return asyncGetBulk2(keys, new SingleElementInfiniteIterator<Transcoder<T>>(tc));
+	}
+
+	/**
+	 * Asynchronously get a bunch of objects from the cache and decode them
+	 * with the given transcoder.
+	 *
+	 * @param keys the keys to request
+	 * @return a Future result of that fetch
+	 * @throws IllegalStateException in the rare circumstance where queue
+	 *         is too full to accept any more requests
+	 */
+	public BulkFuture<Map<String, Object>> asyncGetBulk2(Collection<String> keys) {
+		return asyncGetBulk2(keys, transcoder);
+	}
+
+	/**
+	 * Varargs wrapper for asynchronous bulk gets.
+	 *
+	 * @param <T>
+	 * @param tc the transcoder to serialize and unserialize value
+	 * @param keys one more more keys to get
+	 * @return the future values of those keys
+	 * @throws IllegalStateException in the rare circumstance where queue
+	 *         is too full to accept any more requests
+	 */
+	public <T> BulkFuture<Map<String, T>> asyncGetBulk2(Transcoder<T> tc,
+	                                                   String... keys) {
+		return asyncGetBulk2(Arrays.asList(keys), tc);
+	}
+
+	/**
+	 * Varargs wrapper for asynchronous bulk gets with the default transcoder.
+	 *
+	 * @param keys one more more keys to get
+	 * @return the future values of those keys
+	 * @throws IllegalStateException in the rare circumstance where queue
+	 *         is too full to accept any more requests
+	 */
+	public BulkFuture<Map<String, Object>> asyncGetBulk2(String... keys) {
+		return asyncGetBulk2(Arrays.asList(keys), transcoder);
+	}
+
+	/**
+	 * Asynchronously get a bunch of objects from the cache.
+	 *
+	 * @param <T>
+	 * @param keys the keys to request
+	 * @param tc_iter an iterator of transcoders to serialize and
+	 *        unserialize values; the transcoders are matched with
+	 *        the keys in the same order.  The minimum of the key
+	 *        collection length and number of transcoders is used
+	 *        and no exception is thrown if they do not match
+	 * @return a Future result of that fetch
+	 * @throws IllegalStateException in the rare circumstance where queue
+	 *         is too full to accept any more requests
+	 */
 	public <T> BulkFuture<Map<String, T>> asyncGetBulk(Collection<String> keys,
 		Iterator<Transcoder<T>> tc_iter) {
 		final Map<String, Future<T>> m=new ConcurrentHashMap<String, Future<T>>();
@@ -1027,6 +1156,7 @@ public class MemcachedClient extends SpyThread
 			=new HashMap<MemcachedNode, Collection<String>>();
 		final NodeLocator locator=conn.getLocator();
 		Iterator<String> key_iter=keys.iterator();
+		//Long bulk_start = System.currentTimeMillis();
 		while (key_iter.hasNext() && tc_iter.hasNext()) {
 			String key=key_iter.next();
 			Transcoder<T> tc = tc_iter.next();
@@ -1124,7 +1254,11 @@ public class MemcachedClient extends SpyThread
 		}
 		assert mops.size() == chunks.size();
 		checkState();
+		//Long bulk_mid = System.currentTimeMillis();
 		conn.addOperations(mops);
+		//Long bulk_end = System.currentTimeMillis();
+		//System.out.println("bulk mid = "+(bulk_mid - bulk_start) / 1000.0);
+		//System.out.println("bulk time = "+(bulk_end - bulk_start) / 1000.0);
 		return new BulkGetFuture<T>(m, ops, latch, localCacheManager);
 	}
 

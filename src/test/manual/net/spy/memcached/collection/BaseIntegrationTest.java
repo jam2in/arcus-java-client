@@ -36,13 +36,13 @@ public class BaseIntegrationTest extends TestCase {
 			"127.0.0.1:2181");
 
 	protected static String ZK_SERVICE_ID = System.getProperty("ZK_SERVICE_ID",
-			"test");
+			"50node");
 
 	protected static String ARCUS_HOST = System.getProperty("ARCUS_HOST",
 			"127.0.0.1:11211");
 
 	protected static boolean USE_ZK = Boolean.valueOf(System.getProperty(
-			"USE_ZK", "false"));
+			"USE_ZK", "true"));
 
 	protected static boolean SHUTDOWN_AFTER_EACH_TEST = USE_ZK;
 
