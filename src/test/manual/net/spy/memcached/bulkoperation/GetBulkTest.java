@@ -21,37 +21,89 @@ import net.spy.memcached.collection.BaseIntegrationTest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class GetBulkTest extends BaseIntegrationTest {
-	public void testOperationTime() throws ExecutionException, InterruptedException {
+	public void testOperationTime() {
 		Collection<String> keys = new ArrayList<String>();
-		int keyListSize = 10000;
+		int keyListSize = 100;
+		String value;
+
+		StringBuilder b = new StringBuilder();
+		for (int i = 0; i < 50; i++) {
+			b.append("b");
+		}
+		value = b.toString();
 
 		for (int i = 0; i < keyListSize; i++) {
-			String key = "MyKey" + i;
-			keys.add(key);
+			StringBuilder a = new StringBuilder();
+			for (int j = 0; j < 50; j++) {
+				a.append("a");
+			}
+			a.append(i);
+			if (i < 5) {
+				mc.set(a.toString(), 0, value);
+			}
+			keys.add(a.toString());
 		}
 
+		Future<Map<String, Object>> future = null;
+		Future<Map<String, Object>> future2 = null;
+		Map<String, Object> result = null;
+		Map<String, Object> result2 = null;
+
 		// first test
-		Long start1 = System.currentTimeMillis();
-		Future<Map<String, Object>> future = mc
-				.asyncGetBulk(keys);
-		Long end1_1 = System.currentTimeMillis();
-		future.get();
-		Long end1_2 = System.currentTimeMillis();
-		System.out.println("getBulk origin : " + (end1_1 - start1) / 1000.0);
-		System.out.println("future.get origin : " + (end1_2 - end1_1) / 1000.0);
+		try {
+			Long start1 = System.currentTimeMillis();
+
+			future = mc.asyncGetBulk(keys);
+
+			Long end1_1 = System.currentTimeMillis();
+
+			result = future.get(1000L, TimeUnit.MILLISECONDS);
+
+			Long end1_2 = System.currentTimeMillis();
+			System.out.println("getBulk origin : " + (end1_1 - start1));
+			System.out.println("future.get origin : " + (end1_2 - end1_1));
+			for(Entry<String, Object> entry : result.entrySet()) {
+				System.out.println("key = "+entry.getKey());
+				System.out.println("value = "+entry.getValue());
+			}
+		} catch (InterruptedException e) {
+			future.cancel(true);
+		} catch (TimeoutException e) {
+			future.cancel(true);
+		} catch (ExecutionException e) {
+			future.cancel(true);
+		}
 
 		//second test
-		Long start2 = System.currentTimeMillis();
-		Future<Map<String, Object>> future2 = mc
-				.asyncGetBulk2(keys);
-		Long end2_1 = System.currentTimeMillis();
-		future2.get();
-		Long end2_2 = System.currentTimeMillis();
-		System.out.println("getBulk new : " + (end2_1 - start2) / 1000.0);
-		System.out.println("future.get new : " + (end2_2 - end2_1) / 1000.0);
+		try {
+			Long start2 = System.currentTimeMillis();
+
+			future2 = mc.asyncGetBulk2(keys);
+
+			Long end2_1 = System.currentTimeMillis();
+
+			result2 = future2.get(1000L, TimeUnit.MILLISECONDS);
+
+			Long end2_2 = System.currentTimeMillis();
+			System.out.println("getBulk new : " + (end2_1 - start2));
+			System.out.println("future.get new : " + (end2_2 - end2_1));
+			for(Entry<String, Object> entry : result2.entrySet()) {
+				System.out.println("key = "+entry.getKey());
+				System.out.println("value = "+entry.getValue());
+			}
+		} catch (InterruptedException e) {
+			future2.cancel(true);
+		} catch (TimeoutException e) {
+			future2.cancel(true);
+		} catch (ExecutionException e) {
+			future2.cancel(true);
+		}
 	}
 }

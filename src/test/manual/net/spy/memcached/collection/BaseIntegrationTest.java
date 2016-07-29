@@ -33,10 +33,10 @@ import org.junit.Ignore;
 public class BaseIntegrationTest extends TestCase {
 
 	protected static String ZK_HOST = System.getProperty("ZK_HOST",
-			"127.0.0.1:2181");
+			"127.0.0.1:6181");
 
 	protected static String ZK_SERVICE_ID = System.getProperty("ZK_SERVICE_ID",
-			"50node");
+			"test");
 
 	protected static String ARCUS_HOST = System.getProperty("ARCUS_HOST",
 			"127.0.0.1:11211");
