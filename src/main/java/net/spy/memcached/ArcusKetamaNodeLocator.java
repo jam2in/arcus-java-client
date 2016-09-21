@@ -200,7 +200,11 @@ public class ArcusKetamaNodeLocator extends SpyObject implements NodeLocator {
 				if (remove) {
 					ketamaNodes.remove(k);
 				} else {
-					ketamaNodes.put(k, node);
+					MemcachedNode colln = ketamaNodes.get(k);
+					if (colln == null ||
+						config.compareNodeName(node, colln) < 0) {
+						ketamaNodes.put(k, node);
+					}
 				}
 			}
 		}
