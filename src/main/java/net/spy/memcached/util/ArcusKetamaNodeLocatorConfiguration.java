@@ -37,4 +37,18 @@ public class ArcusKetamaNodeLocatorConfiguration extends
 		super.socketAddresses.remove(node);
 	}
 	
+	/**
+	 * compares lexicographically the two socket address string of MemcachedNode node1 and node2.
+	 * @param node1
+	 * @param node2
+	 * @return return the value 0 if the node2 is equal to node1;
+	 * a value less than 0 if node1 is lexicographically less than node2;
+	 * and a value greater than 0 if node1 is lexicographically greater than the node2.
+	 */
+	public int compareNodeName(final MemcachedNode node1, final MemcachedNode node2) {
+		String name1 = socketAddresses.get(node1);
+		String name2 = socketAddresses.get(node2);
+		
+		return name1.compareTo(name2);
+	}
 }
