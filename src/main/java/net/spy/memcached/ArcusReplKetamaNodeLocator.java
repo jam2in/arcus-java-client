@@ -300,8 +300,13 @@ public class ArcusReplKetamaNodeLocator extends SpyObject implements NodeLocator
 				
 				if (remove)
 					ketamaGroups.remove(k);
-				else
-					ketamaGroups.put(k, group);
+				else {
+					MemcachedReplicaGroup collg = ketamaGroups.get(k);
+					if (collg == null ||
+						config.compareNodeName(group, collg) < 0) {
+						ketamaGroups.put(k, group);
+					}
+				}
 			}
 		}
 	}

@@ -40,5 +40,17 @@ public class ArcusReplKetamaNodeLocatorConfiguration implements
 	public int getNodeRepetitions() {
 		return NUM_REPS;
 	}
+	
+	/**
+	 * compares lexicographically the two group name of MemcachedNode node1 and node2.
+	 * @param group1
+	 * @param group2
+	 * @return return the value 0 if the node2 is equal to node1;
+	 * a value less than 0 if node1 is lexicographically less than node2;
+	 * and a value greater than 0 if node1 is lexicographically greater than the node2.
+	 */
+	public int compareNodeName(final MemcachedReplicaGroup group1, final MemcachedReplicaGroup group2) {
+		return group1.getGroupName().compareTo(group2.getGroupName());
+	}
 }
 /* ENABLE_REPLICATION end */
