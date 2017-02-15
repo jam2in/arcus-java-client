@@ -24,6 +24,7 @@ package net.spy.memcached;
  * previous ketama node
  */
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -64,6 +65,8 @@ public class CacheManager extends SpyThread implements Watcher,
 	private final String hostPort;
 
 	private final String serviceCode;
+
+	private final String zkAcl;
 
 	private CacheMonitor cacheMonitor;
 
@@ -108,6 +111,7 @@ public class CacheManager extends SpyThread implements Watcher,
 		this.clientInitLatch = clientInitLatch;
 		this.poolSize = poolSize;
 		this.waitTimeForConnect = waitTimeForConnect;
+		this.zkAcl = cfb.getZkAcl();
 		/* ENABLE_REPLICATION if */
 		this.arcusReplEnabled = cfb.getArcusReplEnabled();
 		/* ENABLE_REPLICATION end */
@@ -144,7 +148,13 @@ public class CacheManager extends SpyThread implements Watcher,
 									hostPort, ZK_CONNECT_TIMEOUT);
 					throw new AdminConnectTimeoutException(hostPort);
 				}
-				
+
+				/* If use zookeeper ACL, set zookeeper authentication with digest scheme */
+				if (zkAcl != null) {
+					zk.addAuthInfo("digest", zkAcl.getBytes());
+					getLogger().info("Add zookeeper authentication");
+				}
+
 				/* ENABLE_REPLICATION if */
 				// Check /arcus_repl/cache_list/{svc} first
 				// If it exists, the service code belongs to a repl cluster

@@ -82,7 +82,9 @@ public class ConnectionFactoryBuilder {
 	private long bulkServiceSingleOpTimeout = DefaultConnectionFactory.DEFAULT_BULKSERVICE_SINGLE_OP_TIMEOUT;
 	
 	private int maxSMGetChunkSize = DefaultConnectionFactory.DEFAULT_MAX_SMGET_KEY_CHUNK_SIZE;
-	
+
+	private String zkAcl = null;
+
 	/* ENABLE_REPLICATION if */
 	private boolean arcusReplEnabled = false;
 
@@ -103,6 +105,16 @@ public class ConnectionFactoryBuilder {
 	}
 
 	/* ENABLE_REPLICATION end */
+
+	public ConnectionFactoryBuilder setZkAcl(String u, String p) {
+		zkAcl = u+":"+p;
+		return this;
+	}
+
+	public String getZkAcl() {
+		return zkAcl;
+	}
+
 	/**
 	 * Set the operation queue factory.
 	 */
